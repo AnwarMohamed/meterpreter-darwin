@@ -22,9 +22,7 @@ Remote *remote_allocate(SOCKET fd)
 		memset(remote, 0, sizeof(Remote));
 
 		remote->fd = fd;
-
 		remote->lock = lock_create();
-
 
 		// If we failed to create the lock we must fail to create the remote
 		// as we wont be able to synchronize communication correctly.

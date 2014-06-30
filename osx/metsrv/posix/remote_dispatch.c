@@ -47,10 +47,17 @@ DWORD request_core_loadlib(Remote *remote, Packet *packet)
 			break;
 		}
 
-		dprintf("targetPath: %s", targetPath);
+		printf("targetPath: %s\n", targetPath);
 
-		library = dlopenbuf(targetPath, dataTlv.buffer, dataTlv.header.length);
-		dprintf("dlopenbuf(%s): %08x / %s", targetPath, library, dlerror());
+		FILE *file = fopen(targetPath,"w");
+		int i;
+		for (i=0; i<dataTlv.header.length; i++)
+			fprintf(file, "%c", ((char*)dataTlv.buffer)[i]);
+		fclose(file);
+
+		library = dlopen(targetPath, RTLD_LAZY);
+		//library = dlopenbuf(targetPath, dataTlv.buffer, dataTlv.header.length);
+		printf("dlopenbuf(%s): %08x / %s\n", targetPath, library, dlerror());
 		if (!library)
 		{
 			res = ERROR_NOT_FOUND;
@@ -67,7 +74,7 @@ DWORD request_core_loadlib(Remote *remote, Packet *packet)
 			// Call the init routine in the library
 			if (init)
 			{
-				dprintf("calling InitServerExtension");
+				printf("calling InitServerExtension\n");
 				res = init(remote);
 			}
 			if (response)

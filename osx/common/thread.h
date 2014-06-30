@@ -1,51 +1,11 @@
 #ifndef _METERPRETER_LIB_THREAD_H
 #define _METERPRETER_LIB_THREAD_H
 
-#ifdef _WIN32
-
-/*****************************************************************************************/
-// Win32/64 specific definitions...
-
-typedef struct __UNICODE_STRING
-{
-	USHORT Length;
-	USHORT MaximumLength;
-	PWSTR Buffer;
-} _UNICODE_STRING, * _PUNICODE_STRING;
-
-typedef struct __OBJECT_ATTRIBUTES
-{
-	ULONG Length;
-	HANDLE RootDirectory;
-	_PUNICODE_STRING ObjectName;
-	ULONG Attributes;
-	PVOID SecurityDescriptor;
-	PVOID SecurityQualityOfService;
-} _OBJECT_ATTRIBUTES, * _POBJECT_ATTRIBUTES;
-
-typedef struct __CLIENT_ID
-{
-  PVOID UniqueProcess;
-  PVOID UniqueThread;
-} _CLIENT_ID, * _PCLIENT_ID;
-
-typedef HANDLE (WINAPI * OPENTHREAD)( DWORD, BOOL, DWORD ); // kernel32!OpenThread
-
-typedef DWORD (WINAPI * NTOPENTHREAD)( PHANDLE, ACCESS_MASK, _POBJECT_ATTRIBUTES, _PCLIENT_ID ); // ntdll!NtOpenThread
-
-/*****************************************************************************************/
-
-#else
 #include "pthread.h"
-#endif // _WIN32
 
 typedef struct _LOCK
 {
-#ifdef _WIN32
-	HANDLE handle;
-#else
 	pthread_mutex_t *handle;
-#endif // _WIN32
 } LOCK, * LPLOCK;
 
 typedef struct _EVENT
@@ -60,12 +20,10 @@ typedef struct _THREAD
 	EVENT * sigterm;
 	LPVOID parameter1;
 	LPVOID parameter2;
-	LPVOID parameter3;
-#ifndef _WIN32 
+	LPVOID parameter3; 
 	void *suspend_thread_data;
 	pthread_t pid;
 	int thread_started;
-#endif
 } THREAD, * LPTHREAD;
 
 #ifdef __GNUC__

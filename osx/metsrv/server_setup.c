@@ -2,9 +2,9 @@
  * @file server_setup.c
  */
 #include "metsrv.h"
-#include "../../common/common.h"
+#include "../common/common.h"
 
-#define errno 0
+//#define errno 0
 
 char * global_meterpreter_transport = "METERPRETER_TRANSPORT_SSL\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
 char * global_meterpreter_url = "https://XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/\x00";
@@ -123,7 +123,7 @@ static VOID server_socket_flush( Remote * remote )
 			break;
 
 		ret = recv(fd, buff, sizeof(buff), 0);
-		printf("[SERVER] Flushed %d bytes from the buffer", ret);
+		printf("[SERVER] Flushed %d bytes from the buffer\n", ret);
 
 		// The socket closed while we waited
 		if(ret == 0) {
@@ -187,7 +187,8 @@ static BOOL server_initialize_ssl( Remote * remote )
 	ssl_locks = (LOCK**)malloc( CRYPTO_num_locks() * sizeof(LOCK *) );
 	if( ssl_locks == NULL )
 	{
-		lock_release( remote->lock );
+		if (remote->lock)
+			lock_release( remote->lock );
 		return FALSE;
 	}
 
@@ -215,7 +216,7 @@ static BOOL server_destroy_ssl( Remote * remote )
 	if( remote == NULL )
 		return FALSE;
 
-	printf("[SERVER] Destroying SSL");
+	printf("[SERVER] Destroying SSL\n");
 
 	lock_acquire( remote->lock );
 
@@ -287,18 +288,18 @@ static BOOL server_negotiate_ssl(Remote *remote)
 		
 		if (success == FALSE) break;
 
-		printf("[SERVER] Sending a HTTP GET request to the remote side...");
+		printf("[SERVER] Sending a HTTP GET request to the remote side...\n");
 
 		if( (ret = SSL_write(remote->ssl, "GET /123456789 HTTP/1.0\r\n\r\n", 27)) <= 0 )
 		{
-			printf("[SERVER] SSL write failed during negotiation with return: %d (%d)", ret, SSL_get_error(remote->ssl, ret));
+			printf("[SERVER] SSL write failed during negotiation with return: %d (%d)\n", ret, SSL_get_error(remote->ssl, ret));
 		}
 
 	} while(0);
 
 	lock_release( remote->lock );
 
-	printf("[SERVER] Completed writing the HTTP GET request: %d", ret);
+	printf("[SERVER] Completed writing the HTTP GET request: %d\n", ret);
 	
 	if( ret < 0 )
 		success = FALSE;
@@ -318,7 +319,7 @@ static DWORD server_dispatch(Remote * remote)
 	Packet * packet = NULL;
 	THREAD * cpt = NULL;
 
-	printf("[DISPATCH] entering server_dispatch( 0x%08X )", remote);
+	printf("[DISPATCH] entering server_dispatch( 0x%08X )\n", remote);
 
 	// Bring up the scheduler subsystem.
 	result = scheduler_initialize(remote);
@@ -331,7 +332,7 @@ static DWORD server_dispatch(Remote * remote)
 	{
 		if (event_poll(serverThread->sigterm, 0))
 		{
-			printf("[DISPATCH] server dispatch thread signaled to terminate...");
+			printf("[DISPATCH] server dispatch thread signaled to terminate...\n");
 			break;
 		}
 
@@ -341,27 +342,27 @@ static DWORD server_dispatch(Remote * remote)
 			result = packet_receive(remote, &packet);
 			if (result != ERROR_SUCCESS)
 			{
-				printf("[DISPATCH] packet_receive returned %d, exiting dispatcher...", result);
+				printf("[DISPATCH] packet_receive returned %d, exiting dispatcher...\n", result);
 				break;
 			}
 
 			running = command_handle(remote, packet);
-			printf("[DISPATCH] command_process result: %s", (running ? "continue" : "stop"));
+			printf("[DISPATCH] command_process result: %s\n", (running ? "continue" : "stop"));
 		}
 		else if (result < 0)
 		{
-			printf("[DISPATCH] server_socket_poll returned %d, exiting dispatcher...", result);
+			printf("[DISPATCH] server_socket_poll returned %d, exiting dispatcher...\n", result);
 			break;
 		}
 	}
 
-	printf("[DISPATCH] calling scheduler_destroy...");
+	printf("[DISPATCH] calling scheduler_destroy...\n");
 	scheduler_destroy();
 
-	printf("[DISPATCH] calling command_join_threads...");
+	printf("[DISPATCH] calling command_join_threads...\n");
 	command_join_threads();
 
-	printf("[DISPATCH] leaving server_dispatch.");
+	printf("[DISPATCH] leaving server_dispatch.\n");
 
 	return result;
 }
@@ -382,9 +383,10 @@ DWORD server_setup( SOCKET fd )
 	char cStationName[256] = {0};
 	char cDesktopName[256] = {0};
 	DWORD res              = 0;
+	
 
-	printf("[SERVER] Initializing...");
-
+	printf("[SERVER] Initializing...\n");
+	
 	int local_error = 0;
 
 	// if hAppInstance is still == NULL it means that we havent been
@@ -398,77 +400,79 @@ DWORD server_setup( SOCKET fd )
 	{
 		do
 		{
-			printf( "[SERVER] module loaded at 0x%08X", hAppInstance );
+			printf( "[SERVER] module loaded at 0x%08X\n", hAppInstance );
 			
 			// Open a THREAD item for the servers main thread, we use this to manage migration later.
 			serverThread = thread_open();
+			printf( "[SERVER] main server thread: handle=0x%08X id=0x%08X sigterm=0x%08X\n", serverThread->handle, serverThread->id, serverThread->sigterm );
 
-			printf( "[SERVER] main server thread: handle=0x%08X id=0x%08X sigterm=0x%08X", serverThread->handle, serverThread->id, serverThread->sigterm );
 
 			if( !(remote = remote_allocate(fd)) )
 			{
 				SetLastError( ERROR_NOT_ENOUGH_MEMORY );
 				break;
 			}
-
+			
 			remote->url = global_meterpreter_url;
 
 			if (strcmp(global_meterpreter_transport+12, "TRANSPORT_SSL") == 0) {
 				remote->transport = METERPRETER_TRANSPORT_SSL;
-				printf("[SERVER] Using SSL transport...");
+				printf("[SERVER] Using SSL transport...\n");
 			} else if (strcmp(global_meterpreter_transport+12, "TRANSPORT_HTTPS") == 0) {
 				remote->transport = METERPRETER_TRANSPORT_HTTPS;
-				printf("[SERVER] Using HTTPS transport...");
+				printf("[SERVER] Using HTTPS transport...\n");
 			} else if (strcmp(global_meterpreter_transport+12, "TRANSPORT_HTTP") == 0) {
 				remote->transport = METERPRETER_TRANSPORT_HTTP;
-				printf("[SERVER] Using HTTP transport...");
+				printf("[SERVER] Using HTTP transport...\n");
 			}
+
 
 			// Do not allow the file descriptor to be inherited by child processes
 			SetHandleInformation((HANDLE)fd, HANDLE_FLAG_INHERIT, 0);
 
-			printf("[SERVER] Initializing tokens...");
+			printf("[SERVER] Initializing tokens...\n");
 
 			// Store our thread handle
 			remote->hServerThread = serverThread->handle;
-
+			
 			// Process our default SSL-over-TCP transport
 			if (remote->transport == METERPRETER_TRANSPORT_SSL) {
-				printf("[SERVER] Flushing the socket handle...");
+				printf("[SERVER] Flushing the socket handle...\n");
 				server_socket_flush( remote );
-		
-				printf("[SERVER] Initializing SSL...");
+				
+				printf("[SERVER] Initializing SSL...\n");
 				if( !server_initialize_ssl( remote ) )
 					break;
-
-				printf("[SERVER] Negotiating SSL...");
+				
+				printf("[SERVER] Negotiating SSL...\n");
 				if( !server_negotiate_ssl( remote ) )
 					break;
-
-				printf("[SERVER] Registering dispatch routines...");
+				
+				printf("[SERVER] Registering dispatch routines...\n");
 				register_dispatch_routines();
 
-				printf("[SERVER] Entering the main server dispatch loop for transport %d...", remote->transport);
+				
+				printf("[SERVER] Entering the main server dispatch loop for transport %d...\n", remote->transport);
 				server_dispatch( remote );
-		
-				printf("[SERVER] Deregistering dispatch routines...");
+
+				printf("[SERVER] Deregistering dispatch routines...\n");
 				deregister_dispatch_routines( remote );
 			}
 
 			if (remote->transport == METERPRETER_TRANSPORT_HTTP || remote->transport == METERPRETER_TRANSPORT_HTTPS) {
-				printf("[SERVER] Registering dispatch routines...");
+				printf("[SERVER] Registering dispatch routines...\n");
 				register_dispatch_routines();
 				
-				printf("[SERVER] Entering the main server dispatch loop for transport %d...", remote->transport);
+				printf("[SERVER] Entering the main server dispatch loop for transport %d...\n", remote->transport);
 
-				printf("[SERVER] Deregistering dispatch routines...");
+				printf("[SERVER] Deregistering dispatch routines...\n");
 				deregister_dispatch_routines( remote );
 			}
 
 		} while (0);
 
 		if (remote->transport == METERPRETER_TRANSPORT_SSL) {
-			printf("[SERVER] Closing down SSL...");
+			printf("[SERVER] Closing down SSL...\n");
 			server_destroy_ssl( remote );
 		}
 
@@ -478,11 +482,11 @@ DWORD server_setup( SOCKET fd )
 	} 
 	__except( exceptionfilter(GetExceptionCode(), GetExceptionInformation()) )
 	{
-		printf("[SERVER] *** exception triggered!");
+		printf("[SERVER] *** exception triggered!\n");
 
 		thread_kill( serverThread );
 	}
 
-	printf("[SERVER] Finished.");
+	printf("[SERVER] Finished.\n");
 	return res;
 }
