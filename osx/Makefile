@@ -1,56 +1,40 @@
-framework_dir = ../metasploit-framework/
+framework_dir =../../metasploit-framework
 
 OUTPUT=.
-CFLAGS=-g -Wall -fasm-blocks
-CC=i686-apple-darwin10-gcc
  
-CFLAGS+= -I metsrv/ -I common/ -I libdl/
-CFLAGS+= -I ../include
+CFLAGS=-g -Wall -fasm-blocks
+CFLAGS+= -I metsrv/ -I common/
+CFLAGS+= -fno-stack-protector
+CFLAGS+= -fno-builtin -D_SIZE_T_DECLARED
+CFLAGS+= -D_BYTE_ORDER=_LITTLE_ENDIAN
+CFLAGS+= -march=i386 -m32
 
-all: run-bundle-all inject-bundle-all i386
-
-i386:
-	$(MAKE) -C libdl && [ -f libdl/libdl-32.dylib ]
-	cp libdl/libdl-32.dylib $(OUTPUT)/libdl-32.dylib
-
+all: osx bin
+osx:
 	$(MAKE) -C common && [ -f common/libsupport.dylib ]
 	cp common/libsupport.dylib $(OUTPUT)/libsupport.dylib
 
 	$(MAKE) -C metsrv && [ -f metsrv/libmetsrv.dylib ]
 	cp metsrv/libmetsrv.dylib $(OUTPUT)/libmetsrv.dylib
 
-x86-64:
+	$(MAKE) -C extensions/stdapi && [ -f extensions/stdapi/ext_server_stdapi.dylib ]
+	cp extensions/stdapi/ext_server_stdapi.dylib $(OUTPUT)/ext_server_stdapi.dylib
 
-inject-bundle-all: inject-bundle-32
-
-inject-bundle-32:
-	$(CC) -I ./include -m32 -march=i386 inject-bundle.c -o inject-bundle
-
-inject-bundle-64:
-	$(CC) -I ./include -m64 -march=x86-64 inject-bundle.c -o inject-bundle
-
-run-bundle-all: run-bundle-32
-	
-run-bundle-32:
-	$(CC) -I ./include -m32 -march=i386 run-bundle.c -o run-bundle-32
-
-run-bundle-64:
-	$(CC) -I ./include -m64 -march=x86-64 run-bundle.c -o run-bundle-64
+bin:
+	$(CC) -m32 -march=i386 -ldl payloads/reverse_tcp_x86.c -o payloads/reverse_tcp_x86.bin
 
 clean:
-	$(MAKE) clean -C libdl
 	$(MAKE) clean -C common
 	$(MAKE) clean -C metsrv
-	rm -rf inject-bundle-* run-bundle-*
-
-test:
-	rm -rf reverse_tcp
-	$(CC) -m32 -march=i386 -L. -I./metsrv -lmetsrv reverse_tcp.c -o reverse_tcp
+	$(MAKE) clean -C extensions/stdapi
+	rm -rf *.dylib payloads/reverse_tcp_x86.bin
 
 install:
-	rm -rf /usr/lib/libmetsrv.dylib
-	rm -rf /usr/lib/libsupport.dylib
-	rm -rf /usr/lib/libdl-32.dylib
-	cp libmetsrv.dylib /usr/lib/libmetsrv.dylib
-	cp libsupport.dylib /usr/lib/libsupport.dylib
-	cp libdl-32.dylib /usr/lib/libdl-32.dylib
+	rm -rf $(framework_dir)/data/meterpreter/ext_server_stdapi.dylib
+	rm -rf $(framework_dir)/data/osx/libmetsrv.dylib
+	rm -rf $(framework_dir)/data/osx/libsupport.dylib
+
+	cp $(OUTPUT)/ext_server_stdapi.dylib $(framework_dir)/data/meterpreter/ext_server_stdapi.dylib
+	cp $(OUTPUT)/libmetsrv.dylib $(framework_dir)/data/osx/libmetsrv.dylib
+	cp $(OUTPUT)/libsupport.dylib $(framework_dir)/data/osx/libsupport.dylib
+	cp payloads/reverse_tcp_x86.bin $(framework_dir)/data/osx/reverse_tcp_x86.bin
