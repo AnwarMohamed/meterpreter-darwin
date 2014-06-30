@@ -2,7 +2,7 @@ Building - Mac OS X
 =====================
 
 You should be able to type `make` in the base directory, go make a
-sandwich, and come back to a working[1] meterpreter for Mac OS X and iOS
+sandwich, and come back to a working meterpreter for Mac OS X and iOS
 
 
 Testing
