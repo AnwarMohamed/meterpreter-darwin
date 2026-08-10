@@ -1,3 +1,4 @@
+#include <errno.h>
 #include "common.h"
 
 DWORD
